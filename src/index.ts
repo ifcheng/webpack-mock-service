@@ -1,45 +1,51 @@
 import path from 'path'
 import * as express from 'express'
 import chokidar, { WatchOptions } from 'chokidar'
+import debounce from 'lodash/debounce'
 import sleep from './utils/sleep'
 import cleanCache from './utils/cleanCache'
-import merge, { Merged } from './utils/merge'
+import merge, { Merge } from './utils/merge'
 
 type IncludeType = string | RegExp | Array<string | RegExp>
 
 type MockMethod = 'all' | 'get' | 'post' | 'put' | 'delete' | 'patch'
 
 const defaultOptions = {
+  // api基础路径
   baseUrl: '/',
   include: '*' as IncludeType,
+  // 没有匹配到api接口时，是否把请求交给下一个中间件处理
   fallthrough: true,
+  // 文件改动后更新mock服务的延迟时间（ms），用于防抖
+  updateDelay: 2000,
 }
 
 type DefaultOptions = typeof defaultOptions
 
 export type MockOptions = {
+  // 路由入口文件
   main: string
   exclude?: IncludeType
+  // 需要监测变化的文件/文件夹，作为第一个参数传递给chokidar.watch()
   watchPaths: string | readonly string[]
+  // 作为第二个参数传递给chokidar.watch()
   watchOptions?: WatchOptions
 } & Partial<DefaultOptions>
 
 export interface MockRoute {
   method?: MockMethod
   url: string
-  response: any
+  response: string | object | express.Handler
   delay?: number
 }
 
 class MockService {
   router: express.IRouter
-  options: Merged<DefaultOptions, MockOptions>
-  indexRoute: string
+  options: Merge<DefaultOptions, MockOptions>
 
   constructor(public app: express.Application, options: MockOptions) {
     this.router = express.Router()
     this.options = merge(defaultOptions, options)
-    this.indexRoute = path.resolve(process.cwd(), this.options.main)
 
     this.setupRouter()
     this.setupMiddleware()
@@ -47,7 +53,7 @@ class MockService {
   }
 
   setupRouter(): void {
-    const routes = require(this.indexRoute) as MockRoute[]
+    const routes = require(this.options.main) as MockRoute[]
     routes.forEach(({ method = 'get', url, response, delay }) => {
       this.router[method](url, async (req, res, next) => {
         if (!this.mock(url)) return next('router')
@@ -58,7 +64,7 @@ class MockService {
       })
     })
     this.router.use((req, res, next) => {
-      this.options.fallthrough ? next('router') : res.sendStatus(404)
+      this.options.fallthrough ? next('router') : res.status(404).end()
     })
   }
 
@@ -69,19 +75,22 @@ class MockService {
   }
 
   watch(): void {
-    const { watchPaths, watchOptions } = this.options
+    const { watchPaths, watchOptions, main, updateDelay } = this.options
     chokidar
       .watch(watchPaths, watchOptions)
-      .on('change', (pathname) => {
-        this.router.stack.length = 0
-        if (path.basename(pathname).startsWith('_')) {
-          cleanCache(this.indexRoute, true)
-        } else {
-          cleanCache(this.indexRoute)
-          cleanCache(pathname)
-        }
-        this.setupRouter()
-      })
+      .on(
+        'change',
+        debounce((pathname) => {
+          this.router.stack.length = 0
+          if (path.basename(pathname).startsWith('_')) {
+            cleanCache(main, true)
+          } else {
+            cleanCache(main)
+            cleanCache(pathname)
+          }
+          this.setupRouter()
+        }, updateDelay)
+      )
       .on('err', (err) => console.log(err))
   }
 
