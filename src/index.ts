@@ -30,6 +30,8 @@ export type MockOptions = {
   watchPaths: string | readonly string[]
   // 作为第二个参数传递给chokidar.watch()
   watchOptions?: WatchOptions
+  // 中间件
+  middlewares?: express.Handler[]
 } & Partial<DefaultOptions>
 
 export interface MockRoute {
@@ -69,9 +71,9 @@ class MockService {
   }
 
   setupMiddleware(): void {
-    this.app.use(express.json())
-    this.app.use(express.urlencoded({ extended: true }))
-    this.app.use(this.options.baseUrl, this.router)
+    const { middlewares, baseUrl } = this.options
+    middlewares && this.app.use(middlewares)
+    this.app.use(baseUrl, this.router)
   }
 
   watch(): void {
