@@ -4,7 +4,7 @@
   "description": "Mocks api requests for webpack-dev-server",
   "main": "lib/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && eslint --fix --ext .js,.ts lib",
     "serve": "node examples/app.js",
     "serve:init": "npm run build && npm run serve"
   },
