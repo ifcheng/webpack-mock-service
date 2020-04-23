@@ -8,7 +8,7 @@ import merge, { Merge } from './utils/merge'
 
 type IncludeType = string | RegExp | Array<string | RegExp>
 
-type MockMethod = 'all' | 'get' | 'post' | 'put' | 'delete' | 'patch'
+type MockMethod = 'get' | 'post' | 'put' | 'patch' | 'delete'
 
 const defaultOptions = {
   // api基础路径
@@ -37,9 +37,12 @@ export type MockOptions = {
 export interface MockRoute {
   method?: MockMethod
   url: string
-  response: string | object | express.Handler
+  response?: string | object | express.Handler
   delay?: number
+  status?: number
 }
+
+export type MockRequest = Record<string, Omit<MockRoute, 'method' | 'url'>>
 
 class MockService {
   router: express.IRouter
@@ -55,19 +58,35 @@ class MockService {
   }
 
   setupRouter(): void {
-    const routes = require(this.options.main) as MockRoute[]
-    routes.forEach(({ method = 'get', url, response, delay }) => {
-      this.router[method](url, async (req, res, next) => {
-        if (!this.mock(url)) return next('router')
-        if (delay) await sleep(delay)
-        typeof response === 'function'
-          ? response(req, res, next)
-          : res.send(response)
+    try {
+      let routes = require(this.options.main) as MockRoute[] | MockRequest
+      if (!Array.isArray(routes)) {
+        routes = Object.entries(routes).map(([key, val]) => {
+          const route = { ...val } as MockRoute
+          const [method, url] = key.split(' ')
+          route.method = method as MockMethod
+          route.url = url
+          return route
+        })
+      }
+      routes.forEach(
+        ({ method = 'get', url, response, delay, status = 200 }) => {
+          method = method.toLowerCase() as MockMethod
+          this.router[method](url, async (req, res, next) => {
+            if (!this.mock(url)) return next('router')
+            if (delay) await sleep(delay)
+            typeof response === 'function'
+              ? response(req, res, next)
+              : res.status(status).send(response)
+          })
+        }
+      )
+      this.router.use((req, res, next) => {
+        this.options.fallthrough ? next('router') : res.status(404).end()
       })
-    })
-    this.router.use((req, res, next) => {
-      this.options.fallthrough ? next('router') : res.status(404).end()
-    })
+    } catch (err) {
+      console.log(err)
+    }
   }
 
   setupMiddleware(): void {

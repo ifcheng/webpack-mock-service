@@ -5,7 +5,7 @@
 ## 安装
 
 ```
-npm install webpack-mock-service
+$ npm install webpack-mock-service
 ```
 
 ## 使用
@@ -62,6 +62,24 @@ module.exports = [
 ]
 ```
 
+or
+
+```js
+module.exports = {
+  'GET /test': {
+    delay: 1000,
+    response: {
+      message: 'Response from mock service.'
+    },
+  },
+  'POST /exclude': {
+    response(req, res) {
+      res.send('whatever you want')
+    },
+  },
+}
+```
+
 ## 参数说明
 
 **MockService Options**
@@ -69,12 +87,12 @@ module.exports = [
 Param          | Type                            | Default     | Description 
 -------------- | ------------------------------- | ----------- | ------------ 
 `main`         | `string`                        | `undefined` | 路由入口文件，建议使用绝对路径 
-`watchPaths`   | `string \| string[]`            | `undefined` | 需要监测变化的文件/文件夹，作为第一个参数传递给`chokidar.watch()` 
+`watchPaths`   | `string\|string[]`              | `undefined` | 需要监测变化的文件/文件夹，作为第一个参数传递给`chokidar.watch()` 
 `watchOptions` | `object`                        | `undefined` | 作为第二个参数传递给`chokidar.watch()` 
 `middlewares`  | `array`                         | `undefined` | 中间件 
 `baseUrl`      | `string`                        | `/`         | api基础路径 
-`include`      | `string \| RegExp \| (string \| RegExp)[]` | `*`          | 包含的api接口 
-`exclude`      | `string \| RegExp \| (string \| RegExp)[]` | `undefined`  | 排除的api接口 
+`include`      | `string\|RegExp\|Array<string\|RegExp>` | `*`          | 包含的api接口 
+`exclude`      | `string\|RegExp\|Array<string\|RegExp>` | `undefined`  | 排除的api接口 
 `fallthrough`  | `boolean`                       | `true`      | 没有匹配到api接口时，是否把请求交给下一个中间件处理
 `updateDelay`  | `number`                        | `2000`      | 文件改动后更新mock服务的延迟时间(ms)，用于防抖。此外，很多编辑器在保存的时侯是先把原文件清空，再进行保存，因此会触发2次文件改变事件，设置该值也可以解决这个问题
 
@@ -86,6 +104,7 @@ Key            | Description
 `url`          | 请求地址
 `response`     | 响应数据或处理请求的函数
 `delay`        | 响应等候时间(ms)
+`status`       | HTTP状态码
 
 ## 热更新
 
