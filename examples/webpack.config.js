@@ -1,6 +1,7 @@
 /* eslint-disable */
 
 const path = require('path')
+const MockService = require('webpack-mock-service').default
 
 module.exports = {
   // ...
@@ -9,7 +10,7 @@ module.exports = {
     before(app) {
       new MockService(app, {
         main: path.join(process.cwd(), 'mock/index.js'),
-        watchPaths: path.join(process.cwd(), 'mock/routes'),
+        watchPaths: path.join(process.cwd(), 'mock'),
         exclude: '/api/exclude'
       })
     },

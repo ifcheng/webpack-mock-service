@@ -1,3 +1,5 @@
+const { mockRequest } = require('../lib')
+
 const products = [
   {
     id: '0',
@@ -11,14 +13,12 @@ const products = [
   },
 ]
 
-const routes = [
-  {
-    url: '/products',
-    response: products,
+module.exports = mockRequest({
+  'GET /products': {
     delay: 500,
+    response: products,
   },
-  {
-    url: '/products/:id',
+  'GET /products/:id': {
     response(req, res) {
       const data = products.find((item) => item.id === req.params.id)
       data
@@ -28,6 +28,4 @@ const routes = [
           })
     },
   },
-]
-
-module.exports = routes
+})

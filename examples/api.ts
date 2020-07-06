@@ -1,4 +1,4 @@
-import { MockRoute } from '../src'
+import { mockRequest } from '../lib'
 
 interface Product {
   id: string
@@ -19,14 +19,12 @@ const products: Product[] = [
   },
 ]
 
-const routes: MockRoute[] = [
-  {
-    url: '/products',
+export default mockRequest({
+  'GET /products': {
+    delay: 500,
     response: products,
-    delay: 600,
   },
-  {
-    url: '/products/:id',
+  'GET /products/:id': {
     response(req, res): void {
       const data = products.find((item) => item.id === req.params.id)
       data
@@ -36,6 +34,4 @@ const routes: MockRoute[] = [
           })
     },
   },
-]
-
-export default routes
+})

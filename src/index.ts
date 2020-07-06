@@ -6,45 +6,55 @@ import sleep from './utils/sleep'
 import cleanCache from './utils/cleanCache'
 import merge, { Merge } from './utils/merge'
 
-type IncludeType = string | RegExp | Array<string | RegExp>
-
 type MockMethod = 'get' | 'post' | 'put' | 'patch' | 'delete'
 
+type PathType = string | RegExp | Array<string | RegExp>
+
 const defaultOptions = {
-  // api基础路径
+  /** api基础路径 */
   baseUrl: '/',
-  include: '*' as IncludeType,
-  // 没有匹配到api接口时，是否把请求交给下一个中间件处理
+  /** 服务启用的接口 */
+  include: '*' as PathType,
+  /** 没有匹配到api接口时，是否把请求交给下一个中间件处理 */
   fallthrough: true,
-  // 文件改动后更新mock服务的延迟时间（ms），用于防抖
+  /** 文件改动后更新mock服务的延迟时间（ms），用于防抖 */
   updateDelay: 2000,
 }
 
 type DefaultOptions = typeof defaultOptions
 
 export type MockOptions = {
-  // 路由入口文件
+  /** 入口文件 */
   main: string
-  exclude?: IncludeType
-  // 需要监测变化的文件/文件夹，作为第一个参数传递给chokidar.watch()
+  /** 要排除的接口 */
+  exclude?: PathType
+  /** 需要监测变化的文件/文件夹，作为第一个参数传递给`chokidar.watch` */
   watchPaths: string | readonly string[]
-  // 作为第二个参数传递给chokidar.watch()
+  /** 作为第二个参数传递给`chokidar.watch` */
   watchOptions?: WatchOptions
-  // 中间件
+  /** 中间件 */
   middlewares?: express.Handler[]
 } & Partial<DefaultOptions>
 
-export interface MockRoute {
-  method?: MockMethod
-  url: string
-  response?: string | object | express.Handler
+export interface MockResponse {
+  /** 响应数据或处理请求的函数 */
+  response?: unknown[] | Record<string, unknown> | express.Handler
+  /** 响应等候时间(ms) */
   delay?: number
+  /** HTTP状态码 */
   status?: number
 }
 
-export type MockRequest = Record<string, Omit<MockRoute, 'method' | 'url'>>
+export interface MockRequest {
+  [key: string]: MockResponse
+}
 
-class MockService {
+/** 辅助函数，方便获取类型提示 */
+export function mockRequest(request: MockRequest): MockRequest {
+  return request
+}
+
+export default class MockService {
   router: express.IRouter
   options: Merge<DefaultOptions, MockOptions>
 
@@ -53,25 +63,17 @@ class MockService {
     this.options = merge(defaultOptions, options)
 
     this.setupRouter()
-    this.setupMiddleware()
+    this.setupMiddlewares()
     this.watch()
   }
 
   setupRouter(): void {
     try {
-      let routes = require(this.options.main) as MockRoute[] | MockRequest
-      if (!Array.isArray(routes)) {
-        routes = Object.entries(routes).map(([key, val]) => {
-          const route = { ...val } as MockRoute
-          const [method, url] = key.split(' ')
-          route.method = method as MockMethod
-          route.url = url
-          return route
-        })
-      }
-      routes.forEach(
-        ({ method = 'get', url, response, delay, status = 200 }) => {
-          method = method.toLowerCase() as MockMethod
+      const requests = require(this.options.main) as MockRequest
+      Object.entries(requests).map(
+        ([key, { response, delay, status = 200 }]) => {
+          const [_method, url] = key.split(' ')
+          const method = _method.toLowerCase() as MockMethod
           this.router[method](url, async (req, res, next) => {
             if (!this.mock(url)) return next('router')
             if (delay) await sleep(delay)
@@ -89,7 +91,7 @@ class MockService {
     }
   }
 
-  setupMiddleware(): void {
+  setupMiddlewares(): void {
     const { middlewares, baseUrl } = this.options
     middlewares && this.app.use(middlewares)
     this.app.use(baseUrl, this.router)
@@ -107,7 +109,8 @@ class MockService {
             cleanCache(main, true)
           } else {
             cleanCache(main)
-            cleanCache(pathname)
+            require.resolve(main) === require.resolve(pathname) ||
+              cleanCache(pathname)
           }
           this.setupRouter()
         }, updateDelay)
@@ -123,7 +126,7 @@ class MockService {
     )
   }
 
-  includes(url: string, paths: IncludeType): boolean {
+  includes(url: string, paths: PathType): boolean {
     Array.isArray(paths) || (paths = [paths])
     return paths.some((path) => {
       if (typeof path === 'string') return path === '*' || path === url
@@ -131,5 +134,3 @@ class MockService {
     })
   }
 }
-
-export default MockService

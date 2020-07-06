@@ -3,10 +3,10 @@ const express = require('express')
 const MockService = require('../lib').default
 
 const app = express()
-const indexRoutes = path.join(process.cwd(), 'examples/routes.js')
+const entry = path.join(__dirname, 'api.js')
 new MockService(app, {
-  main: indexRoutes,
-  watchPaths: indexRoutes,
+  main: entry,
+  watchPaths: entry,
 })
 
 app.listen(3000)
