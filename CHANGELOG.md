@@ -1,3 +1,9 @@
+## 3.0.0
+
+**BREAKING CHANGES**
+- `MockOptions`移除`main`选项，现在不再需要提供入口文件，程序会自动导入mock文件夹下符合条件的文件
+- `include`修改为`includeApis`，`exclude`修改为`excludeApis`
+
 ## 2.0.0
 
 **BREAKING CHANGES**

@@ -2,6 +2,8 @@
 
 提供api mock服务，可配合`webpack-dev-server`使用，也可单独使用
 
+**V3版本开始不再需要提供入口文件，程序会自动导入mock文件夹下符合条件的文件**
+
 ## 安装
 
 ```
@@ -15,7 +17,6 @@ $ npm install webpack-mock-service
 ```js
 const path = require('path')
 const MockService = require('webpack-mock-service').default
-const entry = path.join(process.cwd(), 'mock/index.js')
 
 module.exports = {
   // ...
@@ -23,9 +24,8 @@ module.exports = {
     // ...
     before(app) {
       new MockService(app, {
-        main: entry,
-        watchPaths: entry,
-        exclude: '/exclude',
+        directory: path.join(process.cwd(), 'mock'), // default
+        excludeApis: '/exclude',
         baseUrl: '/api'
       })
     },
@@ -64,13 +64,15 @@ module.exports = {
 
 Param          | Type                            | Default     | Description 
 -------------- | ------------------------------- | ----------- | ------------ 
-`main`         | `string`                        | `-`         | 入口文件，建议使用绝对路径 
-`watchPaths`   | `string\|string[]`              | `-`         | 需要监测变化的文件/文件夹，作为第一个参数传递给`chokidar.watch()` 
-`watchOptions` | `object`                        | `-`         | 作为第二个参数传递给`chokidar.watch()` 
+`directory`    | `string`                        | `path.join(process.cwd(), 'mock')`        | mock文件夹绝对路径 
+`useSubdirectories`    | `boolean`               | `true`      | 是否使用子目录 
+`filter`       | `RegExp\|((filepath: string) => boolean)`   | `/\.js(on)?$/`      | 文件过滤器 
+`watchPaths`   | `string\|string[]`              | `-`         | 需要监测变化的文件/文件夹，作为第一个参数传递给`chokidar.watch` ，默认为`directory`的值
+`watchOptions` | `object`                        | `-`         | 作为第二个参数传递给`chokidar.watch` 
 `middlewares`  | `express.Handler[]`             | `-`         | 中间件 
 `baseUrl`      | `string`                        | `/`         | api基础路径 
-`include`      | `string\|RegExp\|Array<string\|RegExp>` | `*` | 包含的api接口 
-`exclude`      | `string\|RegExp\|Array<string\|RegExp>` | `-` | 排除的api接口 
+`includeApis`      | `string\|RegExp\|Array<string\|RegExp>` | `*` | 包含的api接口 
+`excludeApis`      | `string\|RegExp\|Array<string\|RegExp>` | `-` | 排除的api接口 
 `fallthrough`  | `boolean`                       | `true`      | 没有匹配到api接口时，是否把请求交给下一个中间件处理
 `updateDelay`  | `number`                        | `2000`      | 文件改动后更新mock服务的延迟时间(ms)，用于防抖。此外，很多编辑器在保存的时侯是先把原文件清空，再进行保存，因此会触发2次文件改变事件，设置该值也可以解决这个问题
 
@@ -84,4 +86,4 @@ Key           | Type                                                 | Default |
 
 ## 热更新
 
-默认情况下，监测到文件变化时只会清除入口文件和改动文件本身的缓存。当这个文件不会影响到其他配置文件的输出时，这么做是没问题的。否则，务必使文件名以`_`开头，这样会自入口模块递归地清除所有子模块的缓存，确保拿到最新数据。
+默认情况下，监测到文件变化时只会清除改动文件本身的缓存。当这个文件不会影响到其他mock文件的输出时，这么做是没问题的。否则，务必使文件名以`_`开头，这样会清除所有已加载的mock文件的缓存，确保拿到最新数据。
