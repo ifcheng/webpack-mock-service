@@ -1,0 +1,7 @@
+{
+  "POST /login": {
+    "response": {
+      "token": "access_token"
+    }
+  }
+}
